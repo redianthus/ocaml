@@ -364,25 +364,35 @@ module Make(Ord: OrderedType) =
           else compare_aux (cons_enum r1 e1) (cons_enum r2 e2)
 
     let compare s1 s2 =
-      compare_aux (cons_enum s1 End) (cons_enum s2 End)
+      match (s1, s2) with
+      | Empty, Empty -> 0
+      | Empty, _ -> -1
+      | _, Empty -> 1
+      | Node { h = h1; _ }, Node { h = h2; _ } ->
+        let cmp_h = compare h1 h2 in
+        if cmp_h <> 0 then cmp_h
+        else compare_aux (cons_enum s1 End) (cons_enum s2 End)
 
     let equal s1 s2 =
       compare s1 s2 = 0
 
-    let rec subset s1 s2 =
+    let rec subset_aux s1 s2 =
       match (s1, s2) with
-        Empty, _ ->
-          true
-      | _, Empty ->
-          false
-      | Node {l=l1; v=v1; r=r1}, (Node {l=l2; v=v2; r=r2} as t2) ->
+      | Empty, _ -> true
+      | _, Empty -> false
+      | Node {l=l1; v=v1; r=r1}, Node {l=l2; v=v2; r=r2} ->
           let c = Ord.compare v1 v2 in
           if c = 0 then
-            subset l1 l2 && subset r1 r2
+            subset_aux l1 l2 && subset_aux r1 r2
           else if c < 0 then
-            subset (Node {l=l1; v=v1; r=Empty; h=0}) l2 && subset r1 t2
+            subset_aux (Node {l=l1; v=v1; r=Empty; h=0}) l2 && subset_aux r1 s2
           else
-            subset (Node {l=Empty; v=v1; r=r1; h=0}) r2 && subset l1 t2
+            subset_aux (Node {l=Empty; v=v1; r=r1; h=0}) r2 && subset_aux l1 s2
+
+    let subset s1 s2 =
+      match (s1, s2) with
+      | Node { h = h1; _ }, Node { h = h2; _ } when Int.compare h1 h2 > 0 -> false
+      | _, _ -> subset_aux s1 s2
 
     let rec iter f = function
         Empty -> ()
